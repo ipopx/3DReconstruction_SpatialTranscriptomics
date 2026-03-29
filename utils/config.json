@@ -1,0 +1,52 @@
+{
+    "data": {
+      "starmap":{
+        "path_to_starmap": "data/STARmap/STARmap_Wang2018three_data_3D_data.h5ad",
+        "slice_thickness": 10,
+        "num_slices": null,
+        "dropout_z_list": [6, 7, 8, 9, 10],
+        "z_key": "z",
+        "cell_class_key": "leiden",
+        "ari_label_key": "leiden",
+        "slices_to_test": [[1, 2, 3]],
+        "save_name_prefix": "starmap"
+      },
+      "merfish":{
+        "path_to_merfish": "data/merfish/merfish_all.h5ad",
+        "cell_class_key": "cell_class",
+        "ari_label_key": "domain",
+        "added_obs_list": ["domain", "Region"],
+        "evaluate_on_real_data": true,
+        "slices_to_test": [[1, 2, 3]],
+        "save_name_prefix": "merfish"
+      }
+    },
+    "spatialz": {
+        "verbose": false,
+        "device": "auto",
+        "auto_n_cell": true,
+        "k_ct": 1,
+        "k_gex": 3,
+        "nb_iter_max": 5,
+        "output_dir": "output"
+      },
+    "metrics": {
+      "verbose": false,
+      "ssim_grid_size": 20,
+      "autocorrelation_n_neighbors": 8,
+      "show": true,
+      "soft_radius": 30.0,
+      "include_ari": false,
+      "include_spatial_autocorrelation": true,
+      "include_ssim": true,
+      "include_ssim_gene_expression": true,
+      "include_soft_metrics": true
+    },
+    "compare": {
+      "output_dir": "output",
+      "model_names": ["spatialz", "scvi"],
+      "slices_to_compare": [2],
+      "model1_data_paths": ["merfish_sim_middle_slice_[1,2,3].h5ad"],
+      "model2_data_paths": ["merfish_sim_middle_slice_[1,2,3].h5ad"]
+    }
+  }

@@ -1,0 +1,22 @@
+{   
+    "true_adata_path": "data/STARmap/starmap_slice_2.h5ad",
+    "sim_adata_path": "output/spatialz/starmap_sim_middle_slice_[1,2,3].h5ad",
+    "model_name" : "spatialz",
+    "dataset" : "starmap",
+    "metrics_parameters": {
+        "ssim_grid_size": 20,
+        "autocorrelation_n_neighbors": 8,
+        "show": true,
+        "soft_radius": 30.0,
+        "ari_label_key": "domain",
+        "include_ari": false,
+        "include_spatial_autocorrelation": false,
+        "include_ssim": true,
+        "include_ssim_gene_expression": true,
+        "include_soft_metrics": true
+    },
+    "visualize_parameters": {
+        "color_label" : "leiden",
+        "genes_to_visualize": ["Cux2"]
+    }
+}
