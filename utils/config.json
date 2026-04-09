@@ -1,7 +1,7 @@
 {
     "data": {
       "starmap":{
-        "path_to_starmap": "data/STARmap/STARmap_Wang2018three_data_3D_data.h5ad",
+        "path_to_starmap": "data/starmap/STARmap_Wang2018three_data_3D_data.h5ad",
         "slice_thickness": 10,
         "num_slices": null,
         "dropout_z_list": [6, 7, 8, 9, 10],
@@ -12,7 +12,7 @@
         "save_name_prefix": "starmap"
       },
       "merfish":{
-        "path_to_merfish": "data/merfish/merfish_all.h5ad",
+        "path_to_merfish": "data/merfish/merfish_all_int.h5ad",
         "cell_class_key": "cell_class",
         "ari_label_key": "domain",
         "added_obs_list": ["domain", "Region"],
@@ -44,7 +44,7 @@
     },
     "compare": {
       "output_dir": "output",
-      "model_names": ["spatialz", "scvi"],
+      "model_names": ["pretrained_scvi", "scvi"],
       "slices_to_compare": [2],
       "model1_data_paths": ["merfish_sim_middle_slice_[1,2,3].h5ad"],
       "model2_data_paths": ["merfish_sim_middle_slice_[1,2,3].h5ad"]

@@ -48,7 +48,10 @@ def train_local_scvi(
     model = SCVI(combined, n_latent=n_latent)
     if use_gpu is None:
         use_gpu = torch.cuda.is_available()
-    model.train(max_epochs=max_epochs, use_gpu=use_gpu)
+    if use_gpu and torch.cuda.is_available():
+        model.train(max_epochs=max_epochs, accelerator="gpu", devices=1)
+    else:
+        model.train(max_epochs=max_epochs, accelerator="cpu", devices=1)
     return model
 
 

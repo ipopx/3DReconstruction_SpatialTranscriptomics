@@ -322,12 +322,23 @@ def compute_comparative_metrics(
         if include_soft_metrics and all(s is not None for s in soft_spearman_list) and all(
             f is not None for f in soft_f1_list
         ):
+            # Filter non-finite values; matplotlib boxplot can appear blank with NaNs/Infs
+            ss0 = np.asarray(soft_spearman_list[0], dtype=float)
+            ss1 = np.asarray(soft_spearman_list[1], dtype=float)
+            f10 = np.asarray(soft_f1_list[0], dtype=float)
+            f11 = np.asarray(soft_f1_list[1], dtype=float)
+
+            ss0 = ss0[np.isfinite(ss0)]
+            ss1 = ss1[np.isfinite(ss1)]
+            f10 = f10[np.isfinite(f10)]
+            f11 = f11[np.isfinite(f11)]
+
             # Order: model1 Spearman, model2 Spearman, model1 F1, model2 F1
             data = [
-                soft_spearman_list[0],
-                soft_spearman_list[1],
-                soft_f1_list[0],
-                soft_f1_list[1],
+                ss0,
+                ss1,
+                f10,
+                f11,
             ]
             positions = [1, 2, 4, 5]
             bp = ax2.boxplot(
@@ -358,16 +369,12 @@ def compute_comparative_metrics(
 
             # P-values between models for each soft metric
             print("Soft metrics p-value:")
-            p_spear = _pvalue_two_models(np.asarray(soft_spearman_list[0]), np.asarray(soft_spearman_list[1]))
-            p_f1 = _pvalue_two_models(np.asarray(soft_f1_list[0]), np.asarray(soft_f1_list[1]))
+            p_spear = _pvalue_two_models(ss0, ss1)
+            p_f1 = _pvalue_two_models(f10, f11)
 
             # Place brackets above each pair
-            y_max_spear = float(
-                np.nanmax(np.concatenate([np.asarray(soft_spearman_list[0]), np.asarray(soft_spearman_list[1])]))
-            )
-            y_max_f1 = float(
-                np.nanmax(np.concatenate([np.asarray(soft_f1_list[0]), np.asarray(soft_f1_list[1])]))
-            )
+            y_max_spear = float(np.max(np.concatenate([ss0, ss1]))) if (ss0.size + ss1.size) else np.nan
+            y_max_f1 = float(np.max(np.concatenate([f10, f11]))) if (f10.size + f11.size) else np.nan
             y0 = max(y_max_spear, y_max_f1)
             if np.isfinite(y0):
                 span = 0.08 * (ax2.get_ylim()[1] - ax2.get_ylim()[0])

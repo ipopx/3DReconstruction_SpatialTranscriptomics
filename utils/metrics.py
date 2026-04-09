@@ -9,6 +9,7 @@ from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score, f
 from sklearn.neighbors import NearestNeighbors
 from skimage.metrics import structural_similarity as ssim
 from scipy.stats import spearmanr
+from scipy.sparse import issparse
 from pathlib import Path
 
 
@@ -154,12 +155,12 @@ def compute_spatial_autocorrelation_metrics(
     # Use intersection of genes in same order
     common_genes = np.intersect1d(true_adata.var_names, sim_adata.var_names)
 
-    X_true = true_adata[:, common_genes].X.A if hasattr(true_adata[:, common_genes].X, "A") else np.asarray(
-        true_adata[:, common_genes].X
-    )
-    X_sim = sim_adata[:, common_genes].X.A if hasattr(sim_adata[:, common_genes].X, "A") else np.asarray(
-        sim_adata[:, common_genes].X
-    )
+    X_true_raw = true_adata[:, common_genes].X
+    X_sim_raw = sim_adata[:, common_genes].X
+
+    # NOTE: np.asarray(scipy.sparse_matrix) yields a 0-d object array; use toarray() instead.
+    X_true = X_true_raw.toarray() if issparse(X_true_raw) else np.asarray(X_true_raw)
+    X_sim = X_sim_raw.toarray() if issparse(X_sim_raw) else np.asarray(X_sim_raw)
 
     coords_true = _coords_from_adata(true_adata, coord_keys=coord_keys)
     coords_sim = _coords_from_adata(sim_adata, coord_keys=coord_keys)
@@ -277,9 +278,11 @@ def compute_ssim_between_densities(
 
     # Gene expression–weighted density SSIM per gene
     common_genes = np.intersect1d(true_adata.var_names, sim_adata.var_names)
-    X_true = true_adata[:, common_genes].X.A if hasattr(true_adata[:, common_genes].X, "A") else np.asarray(true_adata[:, common_genes].X)
-    X_sim = sim_adata[:, common_genes].X.A if hasattr(sim_adata[:, common_genes].X, "A") else np.asarray(sim_adata[:, common_genes].X)
-
+    X_true_raw = true_adata[:, common_genes].X
+    X_sim_raw = sim_adata[:, common_genes].X
+    X_true = X_true_raw.toarray() if issparse(X_true_raw) else np.asarray(X_true_raw)
+    X_sim = X_sim_raw.toarray() if issparse(X_sim_raw) else np.asarray(X_sim_raw)
+    
     coords_true = _coords_from_adata(true_adata, coord_keys=coord_keys)
     coords_sim = _coords_from_adata(sim_adata, coord_keys=coord_keys)
 
@@ -494,7 +497,16 @@ def summarize_and_plot_metrics(
         # Boxplot panel for soft metrics (if requested)
         ax2 = axes[1, 0]
         if include_soft_metrics and soft_spearman is not None and soft_f1 is not None:
-            data = [soft_spearman, soft_f1]
+            soft_spearman_f = np.asarray(soft_spearman, dtype=float)
+            soft_f1_f = np.asarray(soft_f1, dtype=float)
+            soft_spearman_f = soft_spearman_f[np.isfinite(soft_spearman_f)]
+            soft_f1_f = soft_f1_f[np.isfinite(soft_f1_f)]
+
+            if soft_spearman_f.size == 0 and soft_f1_f.size == 0:
+                ax2.axis("off")
+                return summary
+
+            data = [soft_spearman_f, soft_f1_f]
             labels = ["Soft Spearman", "Soft F1"]
             bp = ax2.boxplot(
                 data,
@@ -603,12 +615,11 @@ def compute_soft_metrics(
     """
     # Use intersection of genes in same order
     common_genes = np.intersect1d(true_adata.var_names, sim_adata.var_names)
-    X_true = true_adata[:, common_genes].X.A if hasattr(true_adata[:, common_genes].X, "A") else np.asarray(
-        true_adata[:, common_genes].X
-    )
-    X_sim = sim_adata[:, common_genes].X.A if hasattr(sim_adata[:, common_genes].X, "A") else np.asarray(
-        sim_adata[:, common_genes].X
-    )
+    X_true_raw = true_adata[:, common_genes].X
+    X_sim_raw = sim_adata[:, common_genes].X
+    X_true = X_true_raw.toarray() if issparse(X_true_raw) else np.asarray(X_true_raw)
+    X_sim = X_sim_raw.toarray() if issparse(X_sim_raw) else np.asarray(X_sim_raw)
+    
     coords_true = _coords_from_adata(true_adata, coord_keys=coord_keys)
     coords_sim = _coords_from_adata(sim_adata, coord_keys=coord_keys)
     n_true, n_genes = X_true.shape
@@ -656,6 +667,7 @@ def compute_soft_metrics(
         else:
             soft_spearman[g] = spearmanr(v_true, v_sim).correlation
 
+    print("finite soft_spearman:", np.isfinite(soft_spearman).sum(), "/", soft_spearman.size)
     soft_spearman_mean = float(np.nanmean(soft_spearman)) if np.isfinite(soft_spearman).any() else np.nan
 
     # Soft F1: per-gene F1 on binary activation (local mean > 0)

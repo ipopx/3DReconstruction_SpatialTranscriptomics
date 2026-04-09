@@ -12,6 +12,8 @@ if model_to_run == "spatialz":
     from SpatialZ import *
 elif model_to_run == "scvi":
     from my_method_scvi import generate_scvi
+elif model_to_run == "pretrained_scvi":
+    from my_method_pretrained_scvi import generate_pretrained_scvi
 elif model_to_run == "pca":
     from my_method_pca import generate_pca
 else:
@@ -123,6 +125,27 @@ def main():
                     k_gex=k_gex,
                     add_obs_list= data_cfg.get("added_obs_list", None),
                     verbose=spatialz_cfg.get("verbose"),
+                )
+            elif model_to_run == "pretrained_scvi":
+                sim_middle_slice = generate_pretrained_scvi(
+                    adata1=left_slice,
+                    adata2=right_slice,
+                    adata1_id="above",
+                    adata2_id="below",
+                    alpha=alpha,
+                    device=device,
+                    n_cell=n_cell_middle_slice,
+                    k_ct=k_ct,
+                    n_mag=1.0,
+                    lr=1e5,
+                    nb_iter_max=nb_iter_max,
+                    seed=42,
+                    num_projections=80,
+                    cell_type_key=data_cfg.get("cell_class_key", "leiden"),
+                    k_gex=k_gex,
+                    add_obs_list= data_cfg.get("added_obs_list", None),
+                    verbose=spatialz_cfg.get("verbose"),
+                    dataset = data_cfg.get('save_name_prefix'),
                 )
             
             _sl = _slice_list_str(slices_to_test[i])
