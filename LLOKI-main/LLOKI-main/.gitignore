@@ -1,0 +1,10 @@
+
+.ipynb_checkpoints/
+__pycache__
+*.pyc
+*h5ad
+*sbatch
+*png
+*pth
+checkpoints/
+data
