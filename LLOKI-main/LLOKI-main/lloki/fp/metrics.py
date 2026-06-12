@@ -6,6 +6,7 @@ from sklearn.metrics import (
     silhouette_score,
 )
 import matplotlib.pyplot as plt
+import os
 
 
 def leiden_cluster(
@@ -58,6 +59,7 @@ def get_clustering_scores(
         color=[keep_obs, "leiden"],
         title=[f"{keep_obs}", "Leiden Clusters"],
     )
+    os.makedirs("output", exist_ok=True)
     plt.savefig(f"output/imputed_umap_{filename}.png")
 
     # Calculate and print clustering scores

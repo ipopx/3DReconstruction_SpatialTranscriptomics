@@ -109,7 +109,9 @@ def train_autoencoder_mnn_triplet_prechunk(
     num_chunks = (data.x.size(0) + chunk_size - 1) // chunk_size
     chunks = create_chunks(data.batch.device, data.batch, num_chunks)
     print(f"Created {num_chunks} chunks.") if verbose else None
-    original_embeddings, k_neighbors = data.x.detach().cpu().numpy(), 30
+    # Biological conservation / neighborhood preservation: kNN computed within each technology.
+    k_neighbors = int(getattr(args, "npl_num_neighbors", 30))
+    original_embeddings = data.x.detach().cpu().numpy()
     chunk_neighbor_indices, chunk_neighbor_distances = [], []
     for i, chunk_indices in enumerate(chunks):
         neighbor_indices, neighbor_distances = compute_batch_nearest_neighbors(
@@ -132,6 +134,12 @@ def train_autoencoder_mnn_triplet_prechunk(
     )
     for epoch in range(epochs):
         model.train()
+        # Triplet warm-up (paper: w=10). Ramp lambda_triplet linearly up to `lamb`.
+        warmup = int(getattr(args, "triplet_warmup", 0) or 0)
+        if warmup > 0:
+            lamb_eff = float(lamb) * min(1.0, float(epoch + 1) / float(warmup))
+        else:
+            lamb_eff = float(lamb)
         unique_batches = torch.unique(data.batch).tolist()
         epoch_autoencoder_loss, epoch_triplet_loss, epoch_neighborhood_loss = (
             0.0,
@@ -143,9 +151,16 @@ def train_autoencoder_mnn_triplet_prechunk(
             chunk_data, chunk_batch_labels = data.x[chunk_indices].to(
                 device
             ), data.batch[chunk_indices].to(device)
+            # Cell-type labels (encoded `high_level_annotation`) for optional
+            # supervised refinement of triplet sampling.
+            chunk_cell_labels = data.cell[chunk_indices].to(device)
             latent_embeddings = model.encode(chunk_data, chunk_batch_labels)
             latents_list = [
                 latent_embeddings[chunk_batch_labels.squeeze() == b]
+                for b in unique_batches
+            ]
+            labels_list = [
+                chunk_cell_labels[chunk_batch_labels.squeeze() == b]
                 for b in unique_batches
             ]
             recon_x = model.decode(latent_embeddings, chunk_batch_labels)
@@ -162,9 +177,12 @@ def train_autoencoder_mnn_triplet_prechunk(
                 autoencoder_loss + lamb_neighborhood * neighborhood_loss
                 if epoch < pretrain_epochs
                 else autoencoder_loss
-                + lamb
+                + lamb_eff
                 * triplet_loss(
-                    [latent for latent in latents_list], mutual_pairs, margin=margin
+                    [latent for latent in latents_list],
+                    mutual_pairs,
+                    labels_list=labels_list,
+                    margin=margin,
                 )
                 + lamb_neighborhood * neighborhood_loss
             )
@@ -185,7 +203,7 @@ def train_autoencoder_mnn_triplet_prechunk(
         if epoch % evaluate_interval == 0:
             (
                 print(
-                    f"Epoch {epoch+1}/{epochs}, Total Loss: {train_losses[-1]:.4f}, AE Loss: {autoencoder_losses[-1]:.4f}, Triplet Loss: {triplet_losses[-1]:.4f}, Neighborhood Loss: {neighborhood_losses[-1]:.4f}, Lambda Triplet: {lamb:.4f}"
+                    f"Epoch {epoch+1}/{epochs}, Total Loss: {train_losses[-1]:.4f}, AE Loss: {autoencoder_losses[-1]:.4f}, Triplet Loss: {triplet_losses[-1]:.4f}, Neighborhood Loss: {neighborhood_losses[-1]:.4f}, Lambda Triplet: {lamb_eff:.4f}"
                 )
                 if epoch >= pretrain_epochs
                 else print(
@@ -232,7 +250,14 @@ def plot_losses(
         plt.show()
 
 
-def triplet_loss(latents_list, mutual_pairs, margin=1.0):
+def triplet_loss(
+    latents_list,
+    mutual_pairs,
+    labels_list=None,
+    margin=1.0,
+    label_match: bool = True,
+    hard_negative: bool = True,
+):
     """Computes the triplet loss"""
     # If there are no mutual pairs, return a zero loss
     if not mutual_pairs:
@@ -244,8 +269,16 @@ def triplet_loss(latents_list, mutual_pairs, margin=1.0):
     positives = []
     negatives = []
 
+    # Debug counters (printed before returning)
+    total_pairs = 0
+    kept_pairs = 0
+    hard_neg_used = 0
+    random_diff_label_neg_used = 0
+    fallback_random_neg_used = 0
+
     # Loop through each mutual pair
     for pair in mutual_pairs:
+        total_pairs += 1
         batch_A = pair["batch_A"]
         index_A = pair["index_A"]
         batch_B = pair["batch_B"]
@@ -255,28 +288,82 @@ def triplet_loss(latents_list, mutual_pairs, margin=1.0):
         anchor_embedding = latents_list[batch_A][index_A]
         positive_embedding = latents_list[batch_B][index_B]
 
-        # Get a random negative index from the same batch as the anchor
-        negative_index = torch.randint(
-            0, latents_list[batch_A].shape[0], (1,), device=latents_list[batch_A].device
-        )
-        negative_embedding = latents_list[batch_A][negative_index]
+        # Optional label-aware refinement:
+        # - restrict positives to mutual nearest neighbors that share the same cell type
+        # - sample a hard negative from the anchor's batch with a different cell type
+        anchor_label = None
+        positive_label = None
+        if labels_list is not None:
+            anchor_label = labels_list[batch_A][index_A]
+            positive_label = labels_list[batch_B][index_B]
+
+        if label_match and (anchor_label is not None) and (positive_label is not None):
+            if anchor_label != positive_label:
+                continue
+
+        negative_embedding = None
+        if labels_list is not None and anchor_label is not None:
+            # Candidate negatives: same batch, different label
+            diff_idx = torch.where(labels_list[batch_A] != anchor_label)[0]
+            if diff_idx.numel() > 0 and hard_negative:
+                # Hard negative: closest cell (in latent space) among different-label candidates
+                cand = latents_list[batch_A][diff_idx]
+                # dist: (num_candidates,)
+                dist = torch.norm(cand - anchor_embedding, dim=1)
+                chosen = diff_idx[torch.argmin(dist)]
+                negative_embedding = latents_list[batch_A][chosen]
+                hard_neg_used += 1
+            elif diff_idx.numel() > 0:
+                # Random negative among different-label candidates
+                chosen = diff_idx[torch.randint(0, diff_idx.numel(), (1,), device=diff_idx.device)]
+                negative_embedding = latents_list[batch_A][chosen]
+                random_diff_label_neg_used += 1
+
+        # Fallback: random negative from the same batch (original behavior)
+        if negative_embedding is None:
+            negative_index = torch.randint(
+                0,
+                latents_list[batch_A].shape[0],
+                (1,),
+                device=latents_list[batch_A].device,
+            )
+            negative_embedding = latents_list[batch_A][negative_index].squeeze(0)
+            fallback_random_neg_used += 1
+        elif negative_embedding.dim() == 2:
+            # If advanced indexing kept a leading dim, squeeze it.
+            negative_embedding = negative_embedding.squeeze(0)
 
         # Store the embeddings
         anchors.append(anchor_embedding)
         positives.append(positive_embedding)
         negatives.append(
-            negative_embedding.squeeze(0)
+            negative_embedding
         )  # Remove extra dimension from negative embedding
+        kept_pairs += 1
 
     # Stack the embeddings into tensors
     anchors = torch.stack(anchors)
     positives = torch.stack(positives)
     negatives = torch.stack(negatives)
 
+    # If we filtered out all pairs due to label mismatch, return zero loss
+    if len(anchors) == 0:
+        print(
+            f"[triplet_loss] total_pairs={total_pairs} kept_pairs=0 "
+            f"hard_neg={hard_neg_used} rand_diff_neg={random_diff_label_neg_used} "
+            f"fallback_rand_neg={fallback_random_neg_used}"
+        )
+        return torch.tensor(0.0, device=latents_list[0].device, requires_grad=True)
+
     # Compute triplet loss
     triplet_loss_fn = torch.nn.TripletMarginLoss(margin=margin, reduction="mean")
     loss = triplet_loss_fn(anchors, positives, negatives)
 
+    print(
+        f"[triplet_loss] total_pairs={total_pairs} kept_pairs={kept_pairs} "
+        f"hard_neg={hard_neg_used} rand_diff_neg={random_diff_label_neg_used} "
+        f"fallback_rand_neg={fallback_random_neg_used}"
+    )
     return loss
 
 

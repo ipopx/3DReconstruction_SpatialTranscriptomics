@@ -1,5 +1,5 @@
 import sys
-model_to_run = sys.argv[1]  # spatialz or scvi
+model_to_run = sys.argv[1]  # spatialz, scvi, uot, ...
 
 import json
 from pathlib import Path
@@ -16,6 +16,8 @@ elif model_to_run == "pretrained_scvi":
     from my_method_pretrained_scvi import generate_pretrained_scvi
 elif model_to_run == "pca":
     from my_method_pca import generate_pca
+elif model_to_run == "uot":
+    from uot.generate_uot import generate_uot
 else:
     raise ValueError(f"Invalid model: {model_to_run}")
 
@@ -34,6 +36,7 @@ def main():
     data_cfg = config.get("data").get("merfish", config)
     spatialz_cfg = config.get("spatialz", config)
     metrics_cfg = config.get("metrics", config)
+    uot_cfg = config.get("uot", {})
 
     adata, slices = load_merfish_dataset(
         data_cfg["path_to_merfish"],
@@ -45,7 +48,7 @@ def main():
         test_slices = get_test_slices(slices, slices_to_test)
         device = spatialz_cfg.get("device", "auto")
     
-        print(f"Running SpatialZ for {len(test_slices)} test slices")
+        print(f"Running {model_to_run} for {len(test_slices)} test slices")
         for i, test_slice in enumerate(test_slices):  
             left_slice, middle_slice, right_slice = test_slice
             
@@ -147,10 +150,29 @@ def main():
                     verbose=spatialz_cfg.get("verbose"),
                     dataset = data_cfg.get('save_name_prefix'),
                 )
-            
+            elif model_to_run == "uot":
+                _sl = _slice_list_str(slices_to_test[i])
+                save_name = f"{data_cfg.get('save_name_prefix')}_sim_middle_slice_{_sl}.h5ad"
+                sim_middle_slice = generate_uot(
+                    bottom=left_slice,
+                    top=right_slice,
+                    middle=middle_slice,
+                    t_interp=float(alpha),
+                    lambda_xy=float(uot_cfg.get("lambda_xy", 100.0)),
+                    ot_reg=float(uot_cfg.get("ot_reg", 0.005)),
+                    ot_reg_m=float(uot_cfg.get("ot_reg_m", 0.1)),
+                    mass_eps=float(uot_cfg.get("mass_eps", 1e-9)),
+                    cell_type_key=data_cfg.get("cell_class_key", "cell_class"),
+                    knn_k=int(uot_cfg.get("knn_k", 7)),
+                    z_key=data_cfg.get("z_key", "z"),
+                    output_path=output_dir / save_name,
+                    overwrite=bool(uot_cfg.get("overwrite", False)),
+                )
+
             _sl = _slice_list_str(slices_to_test[i])
             save_name = f"{data_cfg.get('save_name_prefix')}_sim_middle_slice_{_sl}.h5ad"
-            save_slice(sim_middle_slice, output_dir=output_dir, name=save_name)
+            if model_to_run != "uot":
+                save_slice(sim_middle_slice, output_dir=output_dir, name=save_name)
             
             plot_save_dir = Path(spatialz_cfg.get("output_dir", "output")) / model_to_run / "metrics_plots"
             plot_save_name = f"{data_cfg.get('save_name_prefix')}_metrics_plot_{_sl}.png"

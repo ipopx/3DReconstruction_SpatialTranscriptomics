@@ -39,7 +39,15 @@ def apply_gcn_normalization(adj_matrix):
 
 
 def create_spatially_weighted_knn_graph(
-    embeddings, adata, k, device, gcn_norm=False, sym=True
+    embeddings,
+    adata,
+    k,
+    device,
+    gcn_norm=False,
+    sym=True,
+    avg_dist_samples=100,
+    seed=None,
+    obsm_spatial_key="spatial",
 ):
     """Refine KNN graph by spatial distances, apply optional symmetrization and GCN normalization."""
     knn_index, knn_weight = knn_graph(embeddings, k, gcn_norm=gcn_norm, sym=sym)
@@ -47,11 +55,20 @@ def create_spatially_weighted_knn_graph(
     knn_adj[knn_index[0], knn_index[1]] = knn_weight
 
     refined_adj = torch.zeros_like(knn_adj)
-    spatial_coords = torch.tensor(adata.obsm["spatial"], device=device, dtype=torch.float32)
-    avg_dist = torch.cdist(
-        spatial_coords[np.random.choice(spatial_coords.size(0), 100)],
-        spatial_coords[np.random.choice(spatial_coords.size(0), 100)],
-    ).mean()
+    spatial_coords = torch.tensor(
+        adata.obsm[obsm_spatial_key], device=device, dtype=torch.float32
+    )
+    n = spatial_coords.size(0)
+    sample_n = int(min(max(avg_dist_samples, 2), n))
+    if seed is None:
+        idx_a = torch.randperm(n, device=device)[:sample_n]
+        idx_b = torch.randperm(n, device=device)[:sample_n]
+    else:
+        gen = torch.Generator(device=device)
+        gen.manual_seed(int(seed))
+        idx_a = torch.randperm(n, generator=gen, device=device)[:sample_n]
+        idx_b = torch.randperm(n, generator=gen, device=device)[:sample_n]
+    avg_dist = torch.cdist(spatial_coords[idx_a], spatial_coords[idx_b]).mean()
 
     # Refine neighbors by spatial distance
     for i in range(embeddings.size(0)):

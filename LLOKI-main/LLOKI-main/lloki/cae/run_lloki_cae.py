@@ -16,61 +16,122 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
+
 high_level_mapping = {
     'Microglia': {
-        'RNA_nbclust_clusters_long': ['Microglia'],
-        'Main_molecular_cell_type': ['Microglia'],
+        'RNA_nbclust_clusters_long': ['Microglia', 'Perivascular_macrophages'],
+        'Main_molecular_cell_type': ['Microglia', 'Perivascular macrophages'],
+        'cell_class': ['Microglia'],
         'subclass': [],
         'original_class': ['34 Immune']
     },
     'Astrocytes': {
         'RNA_nbclust_clusters_long': ['Astrocytes_Cortex_Hippocampus', 'Astrocytes_Thalamus_Hypothalamus'],
         'Main_molecular_cell_type': ['Astrocytes'],
+        'cell_class': ['Astrocyte'],
         'subclass': ['318 Astro-NT NN', '319 Astro-TE NN', '321 Astroependymal NN'],
-        'original_class': []
-        # 'original_class': ['30 Astro-Epen']
+        'original_class': ['30 Astro-Epen']
     },
     'Excitatory_neurons': {
-        'RNA_nbclust_clusters_long': ['Excitatory_neurons_Layer1_Piriform', 'Excitatory_neurons_Layer2_3', 'Excitatory_neurons_Layer4', 'Excitatory_neurons_Layer5','Excitatory_neurons_Telencephalon', 
-                                      'Excitatory_neurons_Layer5_6', 'Excitatory_neurons_Layer6','Excitatory_neurons_Hippocampal_CA1', 'Excitatory_neurons_Hippocampal_CA2', 'Excitatory_neurons_Hippocampal_CA3', 
-                                      'Peptidergic_neurons', 'Excitatory_neurons_Amygdala', 'Excitatory_neurons_Di/mesencephalon', 'Cholinergic_neurons_Habenebula'],
-        'Main_molecular_cell_type': ['Telencephalon projecting excitatory neurons', 'Di- and mesencephalon excitatory neurons','Telencephalon projecting excitatory neurons',],
+        'RNA_nbclust_clusters_long': [
+            'Excitatory_neurons_Layer1_Piriform', 'Excitatory_neurons_Layer2_3',
+            'Excitatory_neurons_Layer4', 'Excitatory_neurons_Layer5',
+            'Excitatory_neurons_Telencephalon', 'Excitatory_neurons_Layer5_6',
+            'Excitatory_neurons_Layer6', 'Excitatory_neurons_Hippocampal_CA1',
+            'Excitatory_neurons_Hippocampal_CA2', 'Excitatory_neurons_Hippocampal_CA3',
+            'Peptidergic_neurons', 'Excitatory_neurons_Amygdala',
+            'Excitatory_neurons_Di/mesencephalon', 'Cholinergic_neurons_Habenula',
+            'Granule_neurons',
+        ],
+        'Main_molecular_cell_type': [
+            'Telencephalon projecting excitatory neurons',
+            'Di- and mesencephalon excitatory neurons',
+            'Dentate gyrus granule neurons',
+            'Cholinergic and monoaminergic neurons',
+            'Cerebellum neurons',
+            'Hindbrain neurons/Spinal cord neurons',
+            'Glutamatergic neuroblasts',
+        ],
+        'cell_class': ['Excitatory'],
         'subclass': [],
-        'original_class': ['01 IT-ET Glut', '02 NP-CT-L6b Glut', '03 OB-CR Glut', '13 CNU-HYa Glut', '18 TH Glut', '14 HY Glut', '19 MB Glut', '24 MY Glut', '17 MH-LH Glut', '16 HY MM Glut', '23 P Glut', '15 HY Gnrh1 Glut', '04 DG-IMN Glut']
+        'original_class': [
+            '01 IT-ET Glut', '02 NP-CT-L6b Glut', '03 OB-CR Glut', '04 DG-IMN Glut',
+            '13 CNU-HYa Glut', '14 HY Glut', '15 HY Gnrh1 Glut', '16 HY MM Glut',
+            '17 MH-LH Glut', '18 TH Glut', '19 MB Glut', '23 P Glut', '24 MY Glut',
+            '25 Pineal Glut',
+        ]
     },
     'Inhibitory_neurons': {
-        'RNA_nbclust_clusters_long': ['Inhibitory_neurons_Amygdala', 'Inhibitory_neurons_Habenula_Hypothalamus', 'Inhibitory_neurons_Reticular_nucleus', 
-                                      'Inhibitory_neurons_Habenula_Thalamus', 'Cck_interneurons', 'Interneurons', 'Serotonergic_neurons',
-                                      'Telencephalon_inhibitory_neurons', 'Inhibitory_interneurons', 'D1_medium_spiny_neurons', 'D2_medium_spiny_neurons',],
-        'Main_molecular_cell_type': ['Telencephalon inhibitory interneurons', 'Peptidergic neurons', 'Di- and mesencephalon inhibitory neurons', 
-                                     'Telencephalon projecting inhibitory neurons', 'Olfactory inhibitory neurons',],
+        'RNA_nbclust_clusters_long': [
+            'Inhibitory_neurons_Amygdala', 'Inhibitory_neurons_Habenula_Hypothalamus',
+            'Inhibitory_neurons_Reticular_nucleus', 'Inhibitory_neurons_Habenula_Thalamus',
+            'Cck_interneurons', 'Interneurons', 'Serotonergic_neurons',
+            'Telencephalon_inhibitory_neurons', 'Inhibitory_interneurons',
+            'D1_medium_spiny_neurons', 'D2_medium_spiny_neurons',
+            'Neurogliaform_cells',
+        ],
+        'Main_molecular_cell_type': [
+            'Telencephalon inhibitory interneurons',
+            'Di- and mesencephalon inhibitory neurons',
+            'Telencephalon projecting inhibitory neurons',
+            'Olfactory inhibitory neurons',
+            'Peptidergic neurons',
+            'Non-glutamatergic neuroblasts',
+        ],
+        'cell_class': ['Inhibitory'],
         'subclass': [],
-        'original_class': ['06 CTX-CGE GABA', '07 CTX-MGE GABA', '05 OB-IMN GABA', '08 CNU-MGE GABA', '09 CNU-LGE GABA', '11 CNU-HYa GABA', '12 HY GABA','20 MB GABA', '27 MY GABA']
+        'original_class': [
+            '05 OB-IMN GABA', '06 CTX-CGE GABA', '07 CTX-MGE GABA', '08 CNU-MGE GABA',
+            '09 CNU-LGE GABA', '10 LSX GABA', '11 CNU-HYa GABA', '12 HY GABA',
+            '20 MB GABA', '27 MY GABA',
+        ]
     },
     'Oligodendrocytes': {
-        'RNA_nbclust_clusters_long': ['Oligodendrocytes_precursor_cells', 'Mature_oligodendrocytes', 'Commited_oligodendrocytes', 'Myelin_forming_oligodendrocytes', 'Newly_formed_oligodendrocytes'],
+        'RNA_nbclust_clusters_long': [
+            'Oligodendrocytes_precursor_cells', 'Mature_oligodendrocytes',
+            'Commited_oligodendrocytes', 'Myelin_forming_oligodendrocytes',
+            'Newly_formed_oligodendrocytes',
+        ],
         'Main_molecular_cell_type': ['Oligodendrocyte precursor cells', 'Oligodendrocytes'],
+        'cell_class': ['OD Immature 1', 'OD Immature 2', 'OD Mature 1', 'OD Mature 2', 'OD Mature 4'],
         'subclass': [],
         'original_class': ['31 OPC-Oligo']
     },
     'Vascular_cells': {
-        'RNA_nbclust_clusters_long': ['Vascular_leptomeningeal_cells', 'Vascular_smooth_muscle_cells', 'Vascular_endothelial_cells', 'Perivascular_macrophages', 'Pericytes'],
-        'Main_molecular_cell_type': ['Vascular and leptomeningeal cells', 'Vascular smooth muscle cells', 'Pericytes', 'Choroid plexus epithelial cells', 'Vascular endothelial cells'],
+        'RNA_nbclust_clusters_long': [
+            'Vascular_leptomeningeal_cells', 'Vascular_smooth_muscle_cells',
+            'Vascular_endothelial_cells', 'Pericytes', 'Perivascular_macrophages',
+        ],
+        'Main_molecular_cell_type': [
+            'Vascular and leptomeningeal cells', 'Vascular smooth muscle cells',
+            'Pericytes', 'Vascular endothelial cells',
+            'Choroid plexus epithelial cells', 'Perivascular macrophages',
+        ],
+        'cell_class': ['Endothelial 1', 'Endothelial 2', 'Endothelial 3', 'Pericytes'],
         'subclass': [],
         'original_class': ['33 Vascular']
     },
     'Ependymal_cells': {
-        'RNA_nbclust_clusters_long': ['Ependymal_cells', 'Tanycytes', 'Choroid_plexus_epithelial_cells'],
-        'Main_molecular_cell_type': ['Ependymal cells'],
-        'subclass': ['322 Tanycyte NN','323 Ependymal NN','325 CHOR NN'],
-        'original_class': []
-        # 'original_class': ['30 Astro-Epen']
+        'RNA_nbclust_clusters_long': [
+            'Ependymal_cells', 'Tanycytes', 'Choroid_plexus_epithelial_cells',
+        ],
+        'Main_molecular_cell_type': [
+            'Ependymal cells',
+            'Subcommissural organ hypendymal cells',
+        ],
+        'cell_class': ['Ependymal'],
+        'subclass': ['322 Tanycyte NN', '323 Ependymal NN', '325 CHOR NN'],
+        'original_class': ['30 Astro-Epen']
     },
     'Other/Unannotated': {
         'RNA_nbclust_clusters_long': ['Neuroblasts'],
-        'Main_molecular_cell_type': ['Unannotated'],
+        'Main_molecular_cell_type': [
+            'Unannotated',
+            'Olfactory ensheathing cells',
+        ],
+        'cell_class': [],
         'subclass': [],
-        'original_class': []  # Add more classes here if needed
+        'original_class': []
     }
 }
 
@@ -84,6 +145,10 @@ def map_to_high_level(row, mapping):
             return high_level
         if 'subclass' in row.index and row['subclass'] in annots['subclass']:
         # if 'class' in row.index and row['class'] in annots['original_class']:
+            return high_level
+        if 'cell_type' in row.index and 'cell_type' in annots and row['cell_type'] in annots['cell_type']:
+            return high_level
+        if 'cell_class' in row.index and 'cell_class' in annots and row['cell_class'] in annots['cell_class']:
             return high_level
         if 'class' in row.index and row['class'] in annots['original_class']:
         # if 'class' in row.index and row['class'] in annots['original_class']:
@@ -169,12 +234,14 @@ def evaluate_final(data, model, device, args):
     sc.pl.umap(adata, color=['batch'])  
     
     plt.savefig(f"{args.output_dir}/cae_umap.png")
+    adata.write_h5ad(os.path.join(args.output_dir, "cae_embeddings_umap.h5ad"))
     return adata
 
 
 def run_lloki_cae(args):
     torch.cuda.empty_cache()
     device = torch.device("cuda")
+    os.makedirs(args.output_dir, exist_ok=True)
     args2=vars(args)
     args2.update({
         'enc_in_channels': 512,  
@@ -183,9 +250,29 @@ def run_lloki_cae(args):
     batch_dim = args2["batch_dim"]
     num_batches = args2["num_batches"]
 
-    slices = [sc.read(f'{args2["output_dir"]}/{f}') for f in os.listdir(args2["output_dir"]) if 'h5ad' in f]
-    for i, s in enumerate(slices):
-        s.obs['batch'] = i
+    batch_map = {
+        "merfish": 0,
+        "m500": 1,
+        "m1100": 2,
+        "smp": 3,
+        "cosmx": 4,
+    }
+
+    files = sorted([f for f in os.listdir(args2["output_dir"]) if f.endswith(".h5ad")])
+    slices = [sc.read(os.path.join(args2["output_dir"], f)) for f in files]
+
+    for f, s in zip(files, slices):
+        prefix = f.split("_", 1)[0].lower()
+        if prefix not in batch_map:
+            raise ValueError(
+                f"Unknown slice prefix '{prefix}' for file '{f}'. "
+                f"Expected one of: {sorted(batch_map.keys())}"
+            )
+        s.obs["batch"] = batch_map[prefix]
+        s.obs["batch_name"] = prefix
+
+    # Ensure model sees the full batch-id space used above (0..max_id).
+    num_batches = max(batch_map.values()) + 1
 
     combined_batch = slices
     concatenated_subgraph = concatenate_anndata(combined_batch)
@@ -198,12 +285,14 @@ def run_lloki_cae(args):
     lr = args2["lr"]
     chunk_size = args2['batch_size']
     num_epochs = args2['epochs']
+    mnn_knn = int(getattr(args, "mnn_num_neighbors", 40))
 
     model = ConditionalAutoencoderML(enc_in_channels=args2['enc_in_channels'], 
                             batch_dim=batch_dim, latent_dim=128, hidden_dims=[256, 175], 
                             num_batches=num_batches).to(device)
 
-    model = train_autoencoder_mnn_triplet_prechunk(model, args, data, lr=lr, knn=40, epochs=num_epochs, pretrain_epochs=0, 
+    model = train_autoencoder_mnn_triplet_prechunk(model, args, data, lr=lr, knn=mnn_knn, epochs=num_epochs, pretrain_epochs=0, 
                                         update_interval=1, lamb=lamb, lamb_neighborhood=lamb_neighborhood, chunk_size=chunk_size, checkpoint_interval=1, margin=1)
 
+    torch.save(model.state_dict(), os.path.join(args.output_dir, "cae_model_final.pth"))
     evaluate_final(data, model, device, args)
